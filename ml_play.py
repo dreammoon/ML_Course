@@ -10,6 +10,8 @@ from games.arkanoid.communication import ( \
     SceneInfo, GameStatus, PlatformAction
 )
 
+import random
+
 def ml_loop():
     """
     The main loop of the machine learning process
@@ -108,6 +110,10 @@ def ml_loop():
             y = clf.predict(feature)
             px = int(feature[:,-1])-20
             dp = px - int(feature[:,2])
+            if(random.randint(0, 10) >= 5):
+                r1=2
+            else:
+                r1=0
             #print(dp)
             if dp > 10:
                 comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
@@ -115,10 +121,10 @@ def ml_loop():
             elif dp < -10:
                 comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
                 print('LEFT')
-            elif(395-int(feature[:,1] ) < 7 and feature[:,4] == 0):
+            elif(395-int(feature[:,1] ) < 7 and int(feature[:,4]) == r1):
                 comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
                 print('LEFT')
-            elif(395-int(feature[:,1] ) < 7 and feature[:,4] == 2):
+            elif(395-int(feature[:,1] ) < 7 and int(feature[:,4]) == r1):
                 comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
                 print('RIGHT')
             else:
