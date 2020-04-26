@@ -109,12 +109,19 @@ def ml_loop():
             px = int(feature[:,-1])-20
             dp = px - int(feature[:,2])
             #print(dp)
-            if dp == 0:
-                comm.send_instruction(scene_info.frame, PlatformAction.NONE)
-                print('NONE')
-            elif dp < 0:
-                comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
-                print('LEFT')
-            elif dp > 0:
+            if dp > 10:
                 comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
                 print('RIGHT')
+            elif dp < -10:
+                comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
+                print('LEFT')
+            elif(395-int(feature[:,1] ) < 7 and feature[:,4] == 0):
+                comm.send_instruction(scene_info.frame, PlatformAction.MOVE_LEFT)
+                print('LEFT')
+            elif(395-int(feature[:,1] ) < 7 and feature[:,4] == 2):
+                comm.send_instruction(scene_info.frame, PlatformAction.MOVE_RIGHT)
+                print('RIGHT')
+            else:
+                comm.send_instruction(scene_info.frame, PlatformAction.NONE)
+                print('NONE')                
+            
