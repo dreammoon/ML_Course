@@ -1,281 +1,203 @@
-"""
-The template of the script for the machine learning process in game pingpong
-"""
+class MLPlay:
+    def __init__(self, player):
+        self.player = player
+        if self.player == "player1":
+            self.player_no = 0
+        elif self.player == "player2":
+            self.player_no = 1
+        elif self.player == "player3":
+            self.player_no = 2
+        elif self.player == "player4":
+            self.player_no = 3
+        self.car_vel = 0
+        self.car_pos = ()
+        pass
 
-# Import the necessary modules and classes
-from mlgame.communication import ml as comm
-import random
+    def update(self, scene_info):
+        """
+        Generate the command according to the received scene information
+        """
+        if scene_info["status"]  != "ALIVE":
+            return "RESET"
 
-def ml_loop(side: str):
-    """
-    The main loop for the machine learning process
-    The `side` parameter can be used for switch the code for either of both sides,
-    so you can write the code for both sides in the same script. Such as:
-    ```python
-    if side == "1P":
-        ml_loop_for_1P()
-    else:
-        ml_loop_for_2P()
-    ```
-    @param side The side which this script is executed for. Either "1P" or "2P".
-    """
-
-    # === Here is the execution order of the loop === #
-    # 1. Put the initialization code here
-    ball_served = False
-    hit_range = 10
-    pred_range = 3
-    def move_to(player, pred) : #move platform to predicted position to catch ball 
-        if player == '1P':
-            if scene_info["platform_1P"][0]+20  > (pred-pred_range) and scene_info["platform_1P"][0]+20 < (pred+pred_range): return 0 # NONE
-            elif scene_info["platform_1P"][0]+20 <= (pred-pred_range) : return 1 # goes right
-            else : return 2 # goes left
-        else :
-            if scene_info["platform_2P"][0]+20  > (pred-pred_range) and scene_info["platform_2P"][0]+20 < (pred+pred_range): return 0 # NONE
-            elif scene_info["platform_2P"][0]+20 <= (pred-pred_range) : return 1 # goes right
-            else : return 2 # goes left
-
-    def get_blocker_direction(bkx,pre_bkx):
-        if bkx > pre_bkx :
-            return 1
-        elif bkx < pre_bkx :
-            return -1
-        else :
-            return 0
-    
-    def ml_loop_for_1P(bkx,bkxdir):
-        if scene_info["ball_speed"][1] > 0  and scene_info["ball"][1] < scene_info["blocker"][1] : #ball goes down and over blocker for 1P
-            hit_blocker_frames = ( scene_info["blocker"][1]+10-scene_info["ball"][1] ) // scene_info["ball_speed"][1] #frames of hit blocker
-            pred = scene_info["ball"][0]+(scene_info["ball_speed"][0]*hit_blocker_frames)
-            turn_head =0;
-            turn_rear = 0
-            if pred > 200 :
-                pred =400 - pred
-                turn_rear = 1
-            elif pred < 0 :
-                pred = 0- pred
-                turn_head = 1
-            if scene_info["ball_speed"][0] > 0 and turn_rear == 0: #ball goes right and not hit wall
-                pred_1P = scene_info["ball"][0]+(scene_info["platform_1P"][1]-scene_info["ball"][1])                
-                if bkxdir  == 1 :
-                    predic_bkx = bkx + hit_blocker_frames//2*5
-                    if predic_bkx > 170 : predic_bkx = 340 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx -hit_blocker_frames//2*5
-                    if predic_bkx < 0 : predic_bkx = 0 - predic_bkx
-            elif scene_info["ball_speed"][0] > 0 and turn_rear == 1: #ball goes right and hit wall
-                pred_1P = scene_info["ball"][0]+(scene_info["platform_1P"][1]-scene_info["ball"][1])
-                if bkxdir  == 1 :
-                    predic_bkx = bkx + hit_blocker_frames//2*5+30
-                    if predic_bkx > 200 : predic_bkx = 400 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx -hit_blocker_frames//2*5+30
-                    if predic_bkx < 30 : predic_bkx = 30+(30 - predic_bkx)                
-            elif scene_info["ball_speed"][0] < 0 and turn_head == 0 : #ball goes left and not hit wall
-                pred_1P = scene_info["ball"][0]-(scene_info["platform_1P"][1]-scene_info["ball"][1])
-                if bkxdir  == 1 :
-                    predic_bkx = bkx +hit_blocker_frames//2*5+30
-                    if predic_bkx > 200 : predic_bkx = 400 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx - hit_blocker_frames//2*5+30
-                    if predic_bkx < 30 : predic_bkx = 30+(30 - predic_bkx)
-            elif scene_info["ball_speed"][0] < 0 and turn_head == 1 : #ball goes left and hit wall
-                pred_1P = scene_info["ball"][0]-(scene_info["platform_1P"][1]-scene_info["ball"][1])
-                if bkxdir  == 1 :
-                    predic_bkx = bkx + hit_blocker_frames//2*5
-                    if predic_bkx > 170 : predic_bkx = 340 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx -hit_blocker_frames//2*5
-                    if predic_bkx < 0 : predic_bkx = 0 - predic_bkx                
-            if abs(predic_bkx-pred) < hit_range : # hit blocker situation
-                if scene_info["ball_speed"][0] > 0 and turn_rear == 0 :
-                    pred_1P = predic_bkx - 170
-                elif scene_info["ball_speed"][0] > 0 and turn_rear == 1 :
-                    pred_1P = predic_bkx + 170
-                elif scene_info["ball_speed"][0] < 0 and turn_head == 0 :
-                    pred_1P = predic_bkx + 170
-                elif scene_info["ball_speed"][0] < 0 and turn_head == 1 :
-                    pred_1P = predic_bkx - 170
-        elif scene_info["ball_speed"][1] > 0 : #ball goes down for 1P
-            if scene_info["ball_speed"][0] > 0 :#ball goes right
-                pred_1P = scene_info["ball"][0]+(scene_info["platform_1P"][1]-scene_info["ball"][1])
-            else :#ball goes left
-                pred_1P = scene_info["ball"][0]-(scene_info["platform_1P"][1]-scene_info["ball"][1])
-        elif scene_info["ball_speed"][1] < 0 and scene_info["ball"][1] > scene_info["blocker"][1]+20 : #ball goes up and below blocker for 1P    
-            if scene_info["ball_speed"][0] > 0 :#ball goes right
-                px = scene_info["ball"][0] - (scene_info["platform_1P"][1]-scene_info["ball"][1])
-                if px < -80 :
-                    pred_1P = 160
-                elif px < 80 :
-                    pred_1P = 80 - px
-                else :
-                    pred_1P = px - 80
-            else :#ball goes left
-                px = scene_info["ball"][0] + (scene_info["platform_1P"][1]-scene_info["ball"][1])
-                if px > 300 :
-                    pred_1P =20
-                elif px > 120 :
-                    pred_1P =320 - px
-                else :
-                    pred_1P = px + 80
-        else :
-            pred_1P = 80
-        
-        bound = pred_1P // 200 # Determine if it is beyond the boundary
-        if (bound > 0): # pred > 200 # fix landing position
-            if (bound%2 == 0) : 
-                pred_1P = pred_1P - bound*200                    
-            else :
-                pred_1P = 200 - (pred_1P - 200*bound)
-        elif (bound < 0) : # pred < 0
-            if (bound%2 ==1) :
-                pred_1P = abs(pred_1P - (bound+1) *200)
-            else :
-                pred_1P = pred_1P + (abs(bound)*200)
-        return move_to(player = '1P',pred = pred_1P)
-
-    def ml_loop_for_2P(bkx,bkxdir):  
-        if scene_info["ball_speed"][1] < 0  and scene_info["ball"][1] > scene_info["blocker"][1]+20 : #ball goes down and over blocker for 2P
-            hit_blocker_frames = (scene_info["blocker"][1]+10-scene_info["ball"][1]) // scene_info["ball_speed"][1] #frames of hit blocker
-            pred = scene_info["ball"][0]+(scene_info["ball_speed"][0]*hit_blocker_frames)
-            turn_head =0;
-            turn_rear = 0
-            if pred > 200 :
-                pred =400 - pred
-                turn_rear = 1
-            elif pred < 0 :
-                pred = 0- pred
-                turn_head = 1
-            if scene_info["ball_speed"][0] > 0 and turn_rear == 0: #ball goes right and not hit wall
-                pred_2P = scene_info["ball"][0]+(scene_info["ball"][1]-scene_info["platform_2P"][1]-30)                
-                if bkxdir  == 1 :
-                    predic_bkx = bkx + hit_blocker_frames//2*5
-                    if predic_bkx > 170 : predic_bkx = 340 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx -hit_blocker_frames//2*5
-                    if predic_bkx < 0 : predic_bkx = 0 - predic_bkx
-            elif scene_info["ball_speed"][0] > 0 and turn_rear == 1: #ball goes right and hit wall
-                pred_2P = scene_info["ball"][0]+(scene_info["ball"][1]-scene_info["platform_2P"][1]-30)
-                if bkxdir  == 1 :
-                    predic_bkx = bkx + hit_blocker_frames//2*5+30
-                    if predic_bkx > 200 : predic_bkx = 400 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx -hit_blocker_frames//2*5+30
-                    if predic_bkx < 30 : predic_bkx = 30+(30 - predic_bkx)                        
-            elif scene_info["ball_speed"][0] < 0 and turn_head == 0  : #ball goes left and not hit wall
-                pred_2P = scene_info["ball"][0]-(scene_info["ball"][1]-scene_info["platform_2P"][1]-30)
-                if bkxdir  == 1 :
-                    predic_bkx = bkx +hit_blocker_frames//2*5+30
-                    if predic_bkx > 200 : predic_bkx = 400 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx - hit_blocker_frames//2*5+30
-                    if predic_bkx < 30 : predic_bkx = 30+(30 - predic_bkx)
-            elif scene_info["ball_speed"][0] < 0 and turn_head == 1  : #ball goes left and hit wall
-                pred_2P = scene_info["ball"][0]-(scene_info["ball"][1]-scene_info["platform_2P"][1]-30)
-                if bkxdir  == 1 :
-                    predic_bkx = bkx + hit_blocker_frames//2*5
-                    if predic_bkx > 170 : predic_bkx = 340 - predic_bkx
-                elif bkxdir == -1 :
-                    predic_bkx = bkx -hit_blocker_frames//2*5
-                    if predic_bkx < 0 : predic_bkx = 0 - predic_bkx                
-            if abs(predic_bkx-pred) < hit_range : # hit blocker situation
-                if scene_info["ball_speed"][0] > 0 and turn_rear == 0 :
-                    pred_2P = predic_bkx - 170
-                elif scene_info["ball_speed"][0] > 0 and turn_rear == 1 :
-                    pred_2P = predic_bkx + 170
-                elif scene_info["ball_speed"][0] < 0 and turn_head == 0 :
-                    pred_2P = predic_bkx + 170
-                elif scene_info["ball_speed"][0] < 0 and turn_head == 1 :
-                    pred_2P = predic_bkx - 170
-        elif scene_info["ball_speed"][1] < 0 : #ball goes down for 2P
-            if scene_info["ball_speed"][0] > 0 :#ball goes right
-                pred_2P = scene_info["ball"][0]+(scene_info["ball"][1]-scene_info["platform_2P"][1]-30)
-            else :#ball goes left
-                pred_2P = scene_info["ball"][0]-(scene_info["ball"][1]-scene_info["platform_2P"][1]-30)
-        elif scene_info["ball_speed"][1] > 0 and scene_info["ball"][1] < scene_info["blocker"][1] : #ball goes up and below blocker for 2P    
-            if scene_info["ball_speed"][0] > 0 :#ball goes right
-                px = scene_info["ball"][0] - (scene_info["ball"][1]-scene_info["platform_2P"][1]-30)
-                if px < -80 :
-                    pred_2P = 160
-                elif px < 80 :
-                    pred_2P = 80 - px
-                else :
-                    pred_2P = px - 80
-            else :#ball goes left
-                px = scene_info["ball"][0] + (scene_info["ball"][1]-scene_info["platform_2P"][1]-30)
-                if px > 300 :
-                    pred_2P =20
-                elif px > 120 :
-                    pred_2P =320 - px
-                else :
-                    pred_2P = px + 80
-        else :
-            pred_2P = 80
-
-        bound = pred_2P// 200 
-        if (bound > 0):
-            if (bound%2 == 0):
-                pred_2P = pred_2P - bound*200 
-            else :
-                pred_2P = 200 - (pred_2P - 200*bound)
-        elif (bound < 0) :
-            if bound%2 ==1:
-                pred_2P = abs(pred_2P - (bound+1) *200)
-            else :
-                pred_2P = pred_2P + (abs(bound)*200)
-        return move_to(player = '2P',pred = pred_2P)
-
-    # 2. Inform the game process that ml process is ready
-    comm.ml_ready()
-
-    # 3. Start an endless loop
-    pre_bkx = 80
-    while True:
-        # 3.1. Receive the scene information sent from the game process
-        scene_info = comm.recv_from_game()
-        bkx=scene_info["blocker"][0]
-
-        # 3.2. If either of two sides wins the game, do the updating or
-        #      resetting stuff and inform the game process when the ml process
-        #      is ready.
-        if scene_info["status"] != "GAME_ALIVE":
-            # Do some updating or resetting stuff
-            ball_served = False
-
-            # 3.2.1 Inform the game process that
-            #       the ml process is ready for the next round
-            comm.ml_ready()
-            continue
-
-        # 3.3 Put the code here to handle the scene information
-
-        # 3.4 Send the instruction for this frame to the game process
-        if not ball_served:
-            comm.send_to_game({"frame": scene_info["frame"], "command": "SERVE_TO_LEFT"})
-            ball_served = True
-        else:
-            if side == "1P":
-                pd1 = get_blocker_direction(bkx,pre_bkx)
-                if pd1 == 0 : pd1 = ppd1
-                command = ml_loop_for_1P(bkx,pd1)
-                pre_bkx = bkx
-                ppd1 = pd1
+        self.car_pos = scene_info[self.player]
+        Bcar = []
+        for car in scene_info["cars_info"]:
+            if car["id"] == self.player_no:
+                self.car_vel = car["velocity"]
+                self.car_pos=car["pos"]
+                f1 = self.car_pos[1]-40
+                f2 = self.car_pos[1]+40
+                s1 = self.car_pos[0]-20
+                s2 = self.car_pos[0]+20
             else:
-                pd2 = get_blocker_direction(bkx,pre_bkx)
-                if pd2 == 0 : pd2 = ppd2                
-                command = ml_loop_for_2P(bkx,pd2)
-                pre_bkx = bkx
-                ppd2 = pd2
+                Bcar.append(car["id"])
+        print("my car position = ",self.car_pos,"my velocity = ",self.car_vel)
+        if self.car_pos == () :
+            print("SPEED")
+            return ["SPEED"]
+        print("Bcars = ", Bcar)
+        
+        m = 9
+        max_dis = 1000
+        left_banner = 0
+        right_banner = 0
+        vel_diff_mid = 0
+        vel_diff_left = 0
+        vel_diff_right = 0
+        lane_pos = []
+        lane_dis = []
+        lane_ctr =[]
+        buffer = 25
+        banner_buffer = 60
+        for i in range(m):
+            lane_pos.append(i*70+35)
+            lane_dis.append(max_dis)
+            lane_ctr.append(lane_pos[i]-self.car_pos[0])
+        left_lane = 0
+        right_lane = 0
+        mid_lane = 0
+        for i in range(m):
+            if lane_ctr[i] == 0:
+                left_lane = i
+                mid_lane = i+1
+                right_lane = i+2
+        
+        if mid_lane != 0:
+            n=len(Bcar)
+            if n != 0:
+                for i in range(n):
+                    for car in scene_info["cars_info"]:
+                        if car["id"] == Bcar[i]:
+                            Bcar_vel = car["velocity"]
+                            Bcar_pos = car["pos"]
+                            trans_pos = Bcar_pos[0]
+                            if Bcar[i] < 100:
+                                for j in range(m):
+                                    if Bcar_pos[0] >= j*70-5 and  Bcar_pos[0] < (j+1)*70-5: trans_pos = j*70+35
+                            print(car["id"], trans_pos, Bcar_pos, Bcar_vel, f1)
+                            # Find the minimun distance in front of my car
+                            if trans_pos == self.car_pos[0] and self.car_pos[1]-Bcar_pos[1] > 0:
+                                print("the car ", car["id"], "is the same lane and front of my car ",self.player_no)
+                                if self.car_pos[1]-Bcar_pos[1] < lane_dis[mid_lane-1]:
+                                    lane_dis[mid_lane-1] = f1-Bcar_pos[1]-40
+                                    vel_diff_mid = self.car_vel-Bcar_vel
+                            # Find the minimun distance in left-lane and right-lane front of my car and banner conditions
+                            if left_lane < m and left_lane > 0:
+                                left_car_pos = left_lane*70-35
+                                if trans_pos == left_car_pos and self.car_pos[1]-Bcar_pos[1] > 0:
+                                    print("the car ", car["id"], "is the left lane and front of my car",self.player_no)
+                                    if self.car_pos[1]-Bcar_pos[1] < lane_dis[left_lane-1]:
+                                        lane_dis[left_lane-1] = f1-Bcar_pos[1]-40
+                                elif trans_pos == left_car_pos and abs(self.car_pos[1]-Bcar_pos[1]) <  banner_buffer:
+                                    left_banner = 1
+                            if right_lane < m+1 and right_lane > 1:
+                                right_car_pos = right_lane*70-35
+                                if trans_pos == right_car_pos and self.car_pos[1]-Bcar_pos[1] > 0:
+                                    print("the car ", car["id"], "is the right lane and front of my car",self.player_no)
+                                    if self.car_pos[1]-Bcar_pos[1] < lane_dis[right_lane-1]:
+                                        lane_dis[right_lane-1] = f1-Bcar_pos[1]-40
+                                elif trans_pos == right_car_pos and abs(self.car_pos[1]-Bcar_pos[1]) <  banner_buffer:
+                                    right_banner = 1
+            else:
+                print("SPEED")
+                return ["SPEED"]                   
+            print("lane_ctr= ", lane_ctr)
+            print("lane_dis =", lane_dis)
 
-        # for parameter in scene_info.keys():
-        #    print("parameters are ", parameter)
-        #print("blocker position : ", scene_info["blocker"][0], scene_info["blocker"][1])
-            #print("speed ", scene_info["ball_speed"])
-            #print("ball ", scene_info["ball"])
-            #print("platform_1P ",scene_info["platform_1P"], "platform_2P", scene_info["platform_2P"])
-            if command == 0:
-                comm.send_to_game({"frame": scene_info["frame"], "command": "NONE"})
-            elif command == 1:
-                comm.send_to_game({"frame": scene_info["frame"], "command": "MOVE_RIGHT"})
-            else :
-                comm.send_to_game({"frame": scene_info["frame"], "command": "MOVE_LEFT"})
+            if lane_dis[mid_lane-1] <120 and vel_diff_mid > 11: return ["BRAKE"]
+        
+            if left_lane != 0 and right_lane != m+1 :
+                if lane_dis[mid_lane-1] == max_dis: return ["SPEED"]
+                elif left_banner == 0 and lane_dis[left_lane-1] > lane_dis[mid_lane-1]+40 and lane_dis[left_lane-1] >= lane_dis[right_lane-1] : return ["SPEED","MOVE_LEFT"]
+                elif right_banner == 0 and lane_dis[right_lane-1] > lane_dis[mid_lane-1]+40 and lane_dis[right_lane-1] > lane_dis[left_lane-1] : return ["SPEED","MOVE_RIGHT"]
+                elif lane_dis[mid_lane-1] > 80+buffer: return ["SPEED"]
+                else: return ["BRAKE"]
+                
+            elif left_lane == 0:
+                if lane_dis[mid_lane-1] == max_dis: return ["SPEED"]
+                elif lane_dis[mid_lane-1] > 80+buffer and right_banner == 0 and lane_dis[right_lane-1]  > lane_dis[mid_lane-1]+40 : return ["SPEED","MOVE_RIGHT"]
+                elif lane_dis[mid_lane-1] > 80+buffer: return ["SPEED"]
+                else: return ["BRAKE"]
+
+            elif right_lane == m+1:
+                if lane_dis[mid_lane-1] == max_dis: return ["SPEED"]
+                elif lane_dis[mid_lane-1] > 80+buffer and left_banner == 0 and lane_dis[left_lane-1] > lane_dis[mid_lane-1]+40: return ["SPEED","MOVE_LEFT"]
+                elif lane_dis[mid_lane-1] > 80+buffer: return ["SPEED"]
+                else: return ["BRAKE"]
+
+        else: # my car is not on the center of each lane
+            if self.car_pos[0] < 35:
+                left_lane = 1
+                right_lane = 2
+            elif self.car_pos[0] > m*70-35:
+                left_lane = m-1
+                right_lane = m
+            else:
+                for i in range(m-1):
+                    if lane_ctr[i]*lane_ctr[i+1] < 0:
+                        left_lane = i+1
+                        right_lane = i+2
+
+            print("left_lane = ", left_lane,"right_lane = ", right_lane)
+            print("lane_ctr= ", lane_ctr)
+            print("lane_dis =", lane_dis)           
+
+            n=len(Bcar)
+            if n != 0:
+                for i in range(n):
+                    for car in scene_info["cars_info"]:
+                        if car["id"] == Bcar[i]:
+                            Bcar_vel = car["velocity"]
+                            Bcar_pos = car["pos"]
+                            trans_pos =Bcar_pos[0]
+                            if Bcar[i] < 100:
+                                for j in range(m):
+                                    if Bcar_pos[0] >= j*70-5 and  Bcar_pos[0] < (j+1)*70-5: trans_pos = j*70+35                 
+                            print(car["id"], trans_pos, Bcar_pos, Bcar_vel, f1)
+                            # Find the minimun distance in left lane of my car
+                            if trans_pos == left_lane*70-35 and self.car_pos[1]-Bcar_pos[1] > 0:
+                                print("the car ", car["id"], "is the left lane and front of my car",self.player_no)
+                                if self.car_pos[1]-Bcar_pos[1] < lane_dis[left_lane-1]:
+                                    lane_dis[left_lane-1] = f1-Bcar_pos[1]-40
+                                    vel_diff_left = self.car_vel-Bcar_vel
+                            elif trans_pos ==  left_lane*70-35 and abs(self.car_pos[1]-Bcar_pos[1]) <  banner_buffer:
+                                left_banner = 1
+                            # Find the minimun distance in right-lane of my car
+                            if trans_pos == right_lane*70-35 and self.car_pos[1]-Bcar_pos[1] > 0:
+                                print("the car ", car["id"], "is the right lane and front of my car",self.player_no)
+                                if self.car_pos[1]-Bcar_pos[1] < lane_dis[right_lane-1]:
+                                    lane_dis[right_lane-1] = f1-Bcar_pos[1]-40
+                                    vel_diff_right = self.car_vel-Bcar_vel
+                            elif trans_pos == right_lane*70-35 and abs(self.car_pos[1]-Bcar_pos[1]) <  banner_buffer:
+                                right_banner = 1
+            else:
+                print("SPEED")
+                return ["SPEED"]
+
+            if lane_dis[left_lane-1] <120 or lane_dis[right_lane-1] <120:
+                if vel_diff_left > 11 or vel_diff_right > 11:
+                    return ["BRAKE"]           
+        
+            if lane_dis[left_lane-1] == max_dis and left_banner == 0 and self.car_pos[0] > 35 : return ["SPEED","MOVE_LEFT"]
+            elif lane_dis[right_lane-1] == max_dis and right_banner == 0 and self.car_pos[0] < 385: return ["SPEED","MOVE_RIGHT"]
+            elif self.car_pos[0] < 35 : return ["MOVE_RIGHT"]
+            elif self.car_pos[0] > m*70-35 : return ["MOVE_LEFT"]
+            elif lane_dis[right_lane-1] >= lane_dis[left_lane-1] and right_banner == 0 and lane_dis[right_lane-1] > 80+buffer:
+                print("SPEED and MOVE_RIGHT")
+                return ["SPEED","MOVE_RIGHT"]
+            elif lane_dis[right_lane-1] <= lane_dis[left_lane-1] and left_banner == 0 and lane_dis[left_lane-1] > 80+buffer:
+                print("SPEED and MOVE_LEFT")
+                return ["SPEED","MOVE_LEFT"]
+            elif lane_dis[right_lane-1] < 80+buffer or lane_dis[left_lane-1] < 80+buffer :
+                print("BRAKE")
+                return ["BRAKE"]
+            else:
+                print("SPEED")
+                return ["SPEED"]                
+
+    def reset(self):
+        """
+        Reset the status
+        """
+        pass
