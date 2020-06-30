@@ -100,7 +100,7 @@ class MLPlay:
                             Bcar_pos = car["pos"]
                             trans_pos = Bcar_pos[0]
                             for j in range(m):
-                                if Bcar_pos[0] >= j*70 and  Bcar_pos[0] < (j+1)*70: trans_pos = j*70+35
+                                if Bcar_pos[0] >= j*70+5 and  Bcar_pos[0] < (j+1)*70-5: trans_pos = j*70+35
                             print(car["id"], trans_pos, Bcar_pos, Bcar_vel, f1)
                             # Find the minimun distance in front of my car
                             if trans_pos == self.car_pos[0] and self.car_pos[1]-Bcar_pos[1] > 0:
@@ -205,7 +205,7 @@ class MLPlay:
                             Bcar_pos = car["pos"]
                             trans_pos =Bcar_pos[0]
                             for j in range(m):
-                                if Bcar_pos[0] >= j*70 and  Bcar_pos[0] < (j+1)*70: trans_pos = j*70+35                 
+                                if Bcar_pos[0] >= j*70+5 and  Bcar_pos[0] < (j+1)*70-5: trans_pos = j*70+35                 
                             print(car["id"], trans_pos, Bcar_pos, Bcar_vel, f1)
                             # Find the minimun distance in left lane of my car
                             if trans_pos == left_lane*70-35 and self.car_pos[1]-Bcar_pos[1] > 0:
